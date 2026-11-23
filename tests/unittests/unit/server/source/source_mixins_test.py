@@ -646,14 +646,15 @@ class SourceMixinsTest(unittest.TestCase):
 
         def check_monitor_layout(_cls, source):
             source.set_monitors({
-                0: {"geometry": (-1920, 0, 1920, 1080)},
-                1: {"geometry": (0, 0, 2560, 1440)},
+                0: {"geometry": (-1920, 0, 1920, 1080), "workarea": (-1920, 30, 1920, 1050)},
+                1: {"geometry": (0, 0, 2560, 1440), "workarea": (0, 30, 2560, 1410)},
             })
             self.assertEqual(source.get_monitor_position(0, (100, 50)), (100, 50))
             self.assertEqual(source.get_monitor_position(1, (100, 50)), (2020, 50))
             normalized = source.get_normalized_monitor_definitions()
             self.assertEqual(normalized[0]["geometry"], (0, 0, 1920, 1080))
             self.assertEqual(normalized[1]["geometry"], (1920, 0, 2560, 1440))
+            self.assertEqual(source.get_client_workarea().get_geometry(), (0, 30, 4480, 1410))
             packets = []
             source.send_async = lambda *packet: packets.append(packet)
             source.send = source.send_async
