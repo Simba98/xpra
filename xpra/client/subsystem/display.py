@@ -798,7 +798,13 @@ class DisplayClient(StubClientSubsystem):
             scalinglog.info("setting scaling to %i%%:", round(100 * self.xscale))
         else:
             scalinglog.info("setting scaling to %i%% x %i%%:", round(100 * self.xscale), round(100 * self.yscale))
-        self.update_screen_size()
+        # A shrinking remote desktop can cause the WM to clamp windows at
+        # their old positions. Publish native window geometries first.
+        windows_first = getattr(self, "configure_windows_before_shrink", False) and xchange >= 1 and ychange >= 1
+        if windows_first:
+            self.get_screen_settings()  # refresh the scaled monitor origin
+        else:
+            self.update_screen_size()
         window = self.get_subsystem("window")
         if window:
             # re-initialize all the windows with their new size
@@ -816,8 +822,16 @@ class DisplayClient(StubClientSubsystem):
                     minx, miny = max_window_size
                 return max(1, min(minx, round(w * xchange))), max(1, min(miny, round(h * ychange)))
 
-            window.resize_windows(new_size_fn)
+            if windows_first:
+                self.monitor_layout_pending = True
+            try:
+                window.resize_windows(new_size_fn)
+            finally:
+                if windows_first:
+                    self.monitor_layout_pending = False
             window.reinit_window_icons()
+        if windows_first:
+            self.update_screen_size()
         self.emit("scaling-changed")
 
     def init_authenticated_packet_handlers(self) -> None:

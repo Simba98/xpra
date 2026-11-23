@@ -503,6 +503,7 @@ class ClientWindow(GObject.GObject):
                 else:
                     log("unexpected WM_SIZE wparam %#x", wparam)
                 if wparam in (win32con.SIZE_MAXIMIZED, win32con.SIZE_RESTORED):
+                    self.minimized = False
                     if self.backing and (width != self.width or height != self.height):
                         self.update_backing_render_size(width, height)
                         self.width = width
@@ -992,6 +993,20 @@ class ClientWindow(GObject.GObject):
 
     def resize(self, w: int, h: int, resize_counter: int = 0) -> None:
         self.move_resize(self.x, self.y, w, h, resize_counter)
+
+    def rescale_window(self, new_size_fn) -> None:
+        if not self.hwnd or self.minimized:
+            return
+        if self.maximized or self.fullscreen:
+            self.update_backing_render_size(self.width, self.height)
+            self.emit("resized")
+            return
+        w, h = new_size_fn(self.width, self.height)
+        self._requested_size = w, h
+        exstyle = GetWindowLongW(self.hwnd, win32con.GWL_EXSTYLE)
+        _, _, ww, wh = system_geometry(0, 0, w, h, self.style, exstyle)
+        flags = win32con.SWP_NOMOVE | win32con.SWP_NOACTIVATE | win32con.SWP_NOOWNERZORDER | win32con.SWP_NOZORDER
+        SetWindowPos(self.hwnd, 0, 0, 0, ww, wh, flags)
 
     def initiate_moveresize(self, x_root: int, y_root: int, direction: int, button: int,
                             source_indication: int) -> None:

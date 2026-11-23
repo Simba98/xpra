@@ -362,10 +362,15 @@ class XpraWin32Client(GObjectClientAdapter, UIXpraClient):
         window.state_updates = {}
 
     def get_monitor_position(self, window) -> dict[str, Any]:
+        display = self.get_subsystem("display")
+        if display and display.monitor_layout_pending:
+            # The peer still resolves monitor-relative coordinates with the old layout.
+            # The packet already contains the normalized absolute geometry.
+            return {}
         monitor = window.get_monitor_position()
         if not monitor:
             return {}
-        if display := self.get_subsystem("display"):
+        if display:
             monitor["position"] = display.cp(*monitor["position"])
         return monitor
 

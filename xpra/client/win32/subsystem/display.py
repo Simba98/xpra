@@ -18,6 +18,9 @@ class Win32DisplayClient(DisplayClient):
     need real window-system bindings.
     """
 
+    configure_windows_before_shrink = True
+    monitor_layout_pending = False
+
     def get_root_size(self) -> tuple[int, int]:
         from xpra.platform.win32.gui import get_display_size
         return get_display_size()
