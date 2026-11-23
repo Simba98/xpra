@@ -506,6 +506,9 @@ class ClientWindow(GObject.GObject):
                         self.emit("resized")
                 else:
                     log("unexpected WM_SIZE wparam %#x", wparam)
+            if msg == win32con.WM_MOUSEACTIVATE and self.is_OR():
+                # Deliver the click while keeping keyboard focus on the menu owner.
+                return win32con.MA_NOACTIVATE
             if msg == win32con.WM_SETFOCUS:
                 self.emit("focused")
             if msg == win32con.WM_KILLFOCUS:

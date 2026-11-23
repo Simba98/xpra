@@ -188,8 +188,11 @@ class XpraWin32Client(GObjectClientAdapter, UIXpraClient):
 
     def window_grab(self, wid: int, window) -> None:
         # confine the pointer to the window (via `ClipCursor`):
-        handle = window.get_window_handle()
-        grabbed = pointer_grab(handle)
+        # An X11 popup grab routes events, but must allow travel to sibling submenus.
+        handle = 0 if window.is_OR() else window.get_window_handle()
+        if not handle and self._grab_handle:
+            pointer_ungrab(self._grab_handle)
+        grabbed = pointer_grab(handle) if handle else False
         grablog("window_grab(%#x, %s) handle=%#x, pointer_grab=%s", wid, window, handle, grabbed)
         self._grab_handle = handle
         # also grab the keyboard so the user can't Alt-Tab / Super away:
