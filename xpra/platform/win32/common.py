@@ -542,6 +542,10 @@ _EnumDisplayMonitors = user32.EnumDisplayMonitors
 MonitorFromWindow = user32.MonitorFromWindow
 MonitorFromWindow.argtypes = [HWND, DWORD]
 MonitorFromWindow.restype = HMONITOR
+
+MonitorFromPoint = user32.MonitorFromPoint
+MonitorFromPoint.argtypes = [POINT, DWORD]
+MonitorFromPoint.restype = HMONITOR
 GetMonitorInfoW = user32.GetMonitorInfoW
 GetMonitorInfoW.argtypes = [HMONITOR, POINTER(MONITORINFOEX)]
 GetMonitorInfoW.restype = BOOL

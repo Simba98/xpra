@@ -40,7 +40,7 @@ from xpra.platform.win32.common import (
     SetForegroundWindow, GetForegroundWindow,
     SetWindowLongA, GWLP_HWNDPARENT, SetWindowLongPtrValueW,
     MINMAXINFO, WINDOWPOS, FLASHWINFO, FlashWindowEx,
-    MonitorFromWindow, GetMonitorInfo, EnumDisplayMonitors,
+    MonitorFromPoint, MonitorFromWindow, GetMonitorInfo, EnumDisplayMonitors,
     CreateRectRgn, CombineRgn, RGN_OR, SetWindowRgn, DeleteObject,
 )
 from xpra.keyboard.keysyms import keysym_name
@@ -1021,6 +1021,18 @@ class ClientWindow(GObject.GObject):
         self._requested_size = w, h
         exstyle = GetWindowLongW(self.hwnd, win32con.GWL_EXSTYLE)
         wx, wy, ww, wh = system_geometry(x, y, w, h, self.style, exstyle)
+        if (self.style & win32con.WS_CAPTION == win32con.WS_CAPTION
+                and not (self.is_OR() or self.fullscreen or self.maximized or self.minimized)):
+            # A server move positions the client area. Its caption may extend
+            # above the destination work area even when the client origin is inside.
+            monitor = MonitorFromPoint(POINT(x, y), win32con.MONITOR_DEFAULTTONULL)
+            if monitor:
+                try:
+                    top = GetMonitorInfo(monitor)["Work"][1]
+                    if wy < top <= y:
+                        wy = top
+                except OSError:
+                    geomlog("move_resize: cannot query destination work area", exc_info=True)
         flags = win32con.SWP_NOACTIVATE | win32con.SWP_NOOWNERZORDER | win32con.SWP_NOZORDER
         geomlog("move_resize%s system geometry=%s", (x, y, w, h, resize_counter), (wx, wy, ww, wh))
         SetWindowPos(self.hwnd, 0, wx, wy, ww, wh, flags)
