@@ -26,9 +26,9 @@ from xpra.platform.win32.common import (
     WNDPROC, WNDCLASSEX, RegisterClassExW, UnregisterClassW,
     CreateWindowExW, DestroyWindow, DefWindowProcW,
     CreateCompatibleDC, DeleteDC,
-    LoadCursor, SetCursor, GetCursorPos, WindowFromPoint, ScreenToClient, GetClientRect,
+    LoadCursor, SetCursor, GetCursorPos, WindowFromPoint, ScreenToClient, ClientToScreen, GetClientRect,
     ShowWindow, UpdateWindow,
-    DestroyIcon, CREATESTRUCT,
+    DestroyIcon,
     AdjustWindowRectEx, SetWindowPos, RECT, GetWindowLongW, GetWindowRect, SendMessageW,
     PostMessageW, ReleaseCapture,
     GetKeyState, ToUnicode, MapVirtualKeyW, GetKeyboardLayout,
@@ -316,6 +316,19 @@ class ClientWindow(GObject.GObject):
         so that the server sees the window mapped before any `window-configure`
         triggered by the geometry changes the metadata may cause.
         """
+        # The WM_CREATE rectangle includes the non-client frame. Publish the
+        # final drawable rectangle, after the native handle and backing exist.
+        origin = POINT()
+        if ClientToScreen(self.hwnd, byref(origin)):
+            self.x, self.y = origin.x, origin.y
+        rect = RECT()
+        if GetClientRect(self.hwnd, byref(rect)) and rect.right > 0 and rect.bottom > 0:
+            display = self.client.get_subsystem("display")
+            bw, bh = self._backing_size
+            expected = display.sp(bw, bh) if display else (bw, bh)
+            self.width, self.height = rect.right, rect.bottom
+            if expected != (self.width, self.height):
+                self.update_backing_render_size(self.width, self.height)
         self.update_client_properties()
         if not self.is_OR():
             add_system_menu_items(self.hwnd, self.can_show_border())
@@ -447,17 +460,6 @@ class ClientWindow(GObject.GObject):
                 wp = cast(lparam, POINTER(WINDOWPOS)).contents
                 wp.hwndInsertAfter = win32con.HWND_BOTTOM
                 # falls through to DefWindowProcW, do not return here
-            if msg == win32con.WM_CREATE:
-                create = cast(lparam, POINTER(CREATESTRUCT)).contents
-                self.x = create.x
-                self.y = create.y
-                if self.backing and (self.width != create.cx or self.height != create.cy):
-                    self.update_backing_render_size(create.cx, create.cy)
-                    self.width = create.cx
-                    self.height = create.cy
-                # the window is not mapped from here:
-                # the GDI backing does not exist yet at this point,
-                # `create()` emits `mapped` once it does (see `window_created`)
             if msg == win32con.WM_CLOSE:
                 self.emit("closed")
                 return 0
